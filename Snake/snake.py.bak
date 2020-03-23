@@ -1,0 +1,216 @@
+import pygame
+from pygame.locals import *
+import os
+
+#Constantes...
+BLOCK_SNAKE = 0
+BLOCK_FEED_APPLE = 1
+BLOCK_FEED_GRAPE = 2
+BLOCK_FEED_LEMON = 4
+BLOCK_FEED_BIRD = 3
+BLOCK_FEED_TURTLE = 5
+BLOCK_FEED_MOUSE = 6
+
+DIMENSIONS_BLOCKS = (10,10)
+
+
+PATH_SOUND_FEED_FRUITS = "./sounds/feed-fruits.ogg"
+PATH_SOUND_FEED_BIRD = "./sounds/feed-bird.ogg"
+PATH_SOUND_FEED_TURTLE = "./sounds/feed-turtle.ogg"
+PATH_SOUND_FEED_MOUSE = "./sounds/feed-mouse.ogg"
+
+PATH_SOUND_VICTORY = "./sounds/victory.ogg" 
+PATH_SOUND_DEFEAT = "./sounds/defeat.ogg"
+
+PATH_BACKGROUND_MUSIC = "./sounds/music.ogg"
+
+PATH_ICON_GAME = "./icon.png"
+
+INITIAL_POS_SNAKE = (20,20)
+
+FPS = 
+BACKGROUND_COLOR = (220,200,155)
+DIMENSIONS_SCREEN = (400,400)
+
+#do menor para o maior seguindo MVC...
+class Block:
+    #Model...
+    def __init__(self,pos = INITIAL_POS_SNAKE,type = BLOCK_SNAKE,dimensions = DIMENSIONS_BLOCKS,next_block_pos = INITIAL_POS_SNAKE):
+        self.type = type
+        self.pos = list(pos)
+        self.dimensions = dimensions
+
+        if type == BLOCK_SNAKE:
+            self.next_block_pos = list(next_block_pos)
+            
+        self._load_itens_block(type)
+    def _load_itens_block(self,type):
+        if type == BLOCK_SNAKE:
+            self.color = (255,255,255)
+            self.sound_feed = None
+        elif type == BLOCK_FEED_APPLE:
+            self.color = (255,0,0)
+            self.sound_feed = pygame.mixer.Sound(PATH_SOUND_FEED_FRUITS)
+        elif type == BLOCK_FEED_GRAPE:
+            self.color = (100,0,102)
+            self.sound_feed = pygame.mixer.Sound(PATH_SOUND_FEED_FRUITS)
+        elif type == BLOCK_FEED_LEMON:
+            self.color = (0,255,0)
+            self.sound_feed = pygame.mixer.Sound(PATH_SOUND_FEED_FRUITS)
+        elif type == BLOCK_FEED_BIRD:
+            self.color = (252,242,99)
+            self.sound_feed = pygame.mixer.Sound(PATH_SOUND_FEED_BIRD)
+        elif type == BLOCK_FEED_TURTLE:
+            self.color = (102,178,255)
+            self.sound_feed = pygame.mixer.Sound(PATH_SOUND_FEED_TURTLE)
+        elif type == BLOCK_FEED_MOUSE:
+            self.color = (255,204,204)
+            self.sound_feed = pygame.mixer.Sound(PATH_SOUND_FEED_MOUSE)
+ 
+        self.sprite = pygame.Surface(self.dimensions).convert()
+        self.sprite.fill(self.color)
+
+    #Controller...
+    def change_block(self,pos,type,next_block_pos,previous_block_pos,dimensions = DIMENSIONS_BLOCKS):
+        return Block(pos,type,dimensions,next_block_pos,previous_block_pos)
+    def move_block(self,vector_direction):
+        self.pos[0] += vector_direction[0] * self.dimensions[0]
+        self.pos[1] += vector_direction[1] * self.dimensions[1] 
+        
+    #View...
+    def draw_block(self,screen):
+        screen.blit(self.sprite,self.pos)
+    def loop_block(self,screen,vector_direction=(0,0)):
+        #atualizo posicao do bloco conforme vetor de direcao passado...
+        self.move_block(vector_direction)
+        
+        #desenho oprint(g.snake) bloco...
+        self.draw_block(screen)    
+    def __str__(self):
+      return "Type:{}\nPosition:{}\nDimensions:{}".format(self.type, self.pos, self.dimensions)    
+    
+
+class Snake:
+    #Model...
+    def __init__(self):
+        self.leader_block = Block()
+        b2 = Block(pos=(10,20),type = BLOCK_SNAKE)
+        b2.sprite.fill((255,0,0))
+        b3 = Block(pos=(0,20),type = BLOCK_SNAKE)
+        b3.sprite.fill((0,255,0))
+        self.snake_blocks = [b2,b3,self.leader_block]
+        self._load_itens_snake()
+    def _load_itens_snake(self):
+        self.sound_victory = pygame.mixer.Sound(PATH_SOUND_VICTORY)
+        self.sound_defeat = pygame.mixer.Sound(PATH_SOUND_DEFEAT)
+    
+    #Controller...
+    def _update_links_between_blocks(self):
+        for i in range(len(self.snake_blocks)-1):
+            self.snake_blocks[i].next_block_pos = self.snake_blocks[i+1].pos
+    def _move_snake_head(self,vector_direction):
+        self.snake_blocks[-1].move_block(vector_direction)
+    def _move_snake_body(self):
+        for i in range(len(self.snake_blocks)-1):
+            self.snake_blocks[i].pos = self.snake_blocks[i].next_block_pos
+    #View...
+    def _draw_snake(self,screen):
+        for block in self.snake_blocks:
+            block.draw_block(screen)
+        pygame.display.update()
+    
+    def loop_snake(self,screen,vector_direction):
+        #atualizo ligacoes de todos os blocos da snake...
+        self._update_links_between_blocks()
+       
+        #movo a cabeca da snake...
+        self._move_snake_head(vector_direction)
+        
+        #movo o corpo da snake...
+        if 1 in vector_direction or -1 in vector_direction:
+            self._move_snake_body()
+    
+    
+        #desenho cada bloco da snake...
+        self._draw_snake(screen)
+        
+        
+     
+    def __str__(self):
+        string = ""
+        for block in self.snake_blocks:
+            string += 30 * "-*-"
+            string += '\n'
+            string += block.__str__()
+        return string
+    
+
+
+class Game:
+    #Model...
+    def __init__(self,title,dimensions,color_fill):
+        pygame.init()
+        #tem que ser antes da criacao da snake para permitir usar o metodo convert dentro dela em sua criacao...
+        self.create_window(title,dimensions,color_fill)
+        self.create_clock()
+        self.snake = Snake()
+    #View...
+    def create_window(self,title,dimensions,color_fill):
+        self.title = title
+        self.dimensions = dimensions
+        self.color_fill = color_fill
+        pygame.display.set_caption(title)
+        pygame.display.set_icon(pygame.image.load(PATH_ICON_GAME))
+        self.screen = pygame.display.set_mode(self.dimensions,pygame.SWSURFACE,32)
+        self.screen.fill(self.color_fill)
+    def create_clock(self):
+        self.clock = pygame.time.Clock()
+    #Controller...
+    
+    
+if __name__ == '__main__':
+    g = Game("Snake Venom 1.0.0",DIMENSIONS_SCREEN,BACKGROUND_COLOR)
+    x,y = 0,0
+    delta = 1
+    fps = FPS
+    ticks = pygame.time.get_ticks()
+    while True:
+        print(g.snake)
+        g.screen.fill(BACKGROUND_COLOR)
+        g.clock.tick(fps)
+        #print(g.clock.get_fps())
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == KEYDOWN:
+                if event.key == pygame.K_RIGHT:
+                    x = 1
+                if event.key == pygame.K_LEFT:
+                    x = -1
+                if event.key == pygame.K_UP:
+                    y = -1
+                if event.key == pygame.K_DOWN:
+                    y = 1
+                if event.key == pygame.K_r:
+                    fps += 5
+            if event.type == KEYUP:
+                if event.key == pygame.K_RIGHT:
+                    x = 0
+                if event.key == pygame.K_LEFT:
+                    x = 0
+                if event.key == pygame.K_UP:
+                    y = 0
+                if event.key == pygame.K_DOWN:
+                    y = 0
+                if event.key == pygame.K_r:
+                    fps = FPS
+        
+        
+        g.snake.loop_snake(g.screen,(x,y))
+        
+        
+        
+        pygame.display.update()
+        os.system("clear")
